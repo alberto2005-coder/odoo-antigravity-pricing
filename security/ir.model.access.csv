@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dynamic_competitor_url,dynamic.competitor.url,model_dynamic_competitor_url,base.group_user,1,1,1,1
+access_dynamic_price_log,dynamic.price.log,model_dynamic_price_log,base.group_user,1,1,1,1
