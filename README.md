@@ -1,6 +1,6 @@
 # Dynamic Competitor Pricing para Odoo
 
-**Dynamic Competitor Pricing** es un módulo avanzado para Odoo (v17/18) diseñado para automatizar y optimizar la estrategia de precios de tu e-commerce o inventario mediante el scraping de precios de la competencia.
+**Dynamic Competitor Pricing** es un módulo avanzado para Odoo (v17, 18 y 19) diseñado para automatizar y optimizar la estrategia de precios de tu e-commerce o inventario mediante el scraping de precios de la competencia.
 
 ## 🚀 Características Principales
 
