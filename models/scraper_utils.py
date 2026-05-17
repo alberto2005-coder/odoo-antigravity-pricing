@@ -36,11 +36,12 @@ def parse_google_shopping(soup):
             pass
     return None
 
-def scrape_price(url, platform, proxy=None):
+def scrape_price(url, platform, proxy=None, api_provider=None, api_key=None, render_js=False):
     """
     Scrapes competitor prices.
     Uses randomized user-agents to bypass basic blocking.
     Allows passing a proxy string (e.g. "http://user:pass@proxy_ip:port") to route requests.
+    Supports native integration with ScrapingBee or ZenRows.
     """
     _logger.info(f"Scraping {platform} URL: {url}")
     headers = {
@@ -57,9 +58,31 @@ def scrape_price(url, platform, proxy=None):
         }
         
     try:
-        # In a real-world production environment with high security (Amazon/Google), 
-        # an external scraping API like ZenRows or ScrapingBee is recommended here.
-        response = requests.get(url, headers=headers, proxies=proxies, timeout=15)
+        request_url = url
+        params = {}
+        
+        # Native API Integrations
+        if api_provider == 'scrapingbee' and api_key:
+            request_url = "https://app.scrapingbee.com/api/v1/"
+            params = {
+                "api_key": api_key,
+                "url": url,
+                "render_js": "True" if render_js else "False"
+            }
+            # Remove custom headers for ScrapingBee as they manage it
+            headers = {}
+            proxies = None
+        elif api_provider == 'zenrows' and api_key:
+            request_url = "https://api.zenrows.com/v1/"
+            params = {
+                "apikey": api_key,
+                "url": url,
+                "js_render": "true" if render_js else "false"
+            }
+            headers = {}
+            proxies = None
+
+        response = requests.get(request_url, params=params, headers=headers, proxies=proxies, timeout=30)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         

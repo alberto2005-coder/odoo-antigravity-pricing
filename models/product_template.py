@@ -2,6 +2,7 @@ from odoo import models, fields, api
 from .scraper_utils import scrape_price
 import time
 import random
+import concurrent.futures
 
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
@@ -38,20 +39,41 @@ class ProductTemplate(models.Model):
         """
         Cron job method to update prices.
         """
-        # Fetch optional proxy from system parameters (Settings -> Technical -> System Parameters)
-        proxy_url = self.env['ir.config_parameter'].sudo().get_param('dynamic_pricing.proxy_url', default=None)
+        # Fetch optional proxy and API configs from system parameters
+        config = self.env['ir.config_parameter'].sudo()
+        proxy_url = config.get_param('dynamic_pricing.proxy_url', default=None)
+        api_provider = config.get_param('dynamic_pricing.api_provider', default=None)
+        api_key = config.get_param('dynamic_pricing.api_key', default=None)
+        render_js = config.get_param('dynamic_pricing.render_js', default='False').lower() == 'true'
         
         products = self.search([('dynamic_pricing_active', '=', True)])
+        
+        # Scrape concurrently to save time
         for product in products:
             if not product.competitor_url_ids:
                 continue
 
             prices = []
-            for comp in product.competitor_url_ids:
-                # Add random sleep between requests to avoid rate limits
-                time.sleep(random.uniform(1.0, 3.5))
+            
+            def scrape_and_update(comp):
+                # Add random sleep between requests to avoid rate limits if not using API
+                if not api_provider:
+                    time.sleep(random.uniform(1.0, 3.5))
                 
-                price = scrape_price(comp.url, comp.platform, proxy=proxy_url)
+                return comp, scrape_price(
+                    comp.url, 
+                    comp.platform, 
+                    proxy=proxy_url,
+                    api_provider=api_provider,
+                    api_key=api_key,
+                    render_js=render_js
+                )
+
+            # Use ThreadPoolExecutor for multi-threading
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                results = executor.map(scrape_and_update, product.competitor_url_ids)
+                
+            for comp, price in results:
                 if price:
                     comp.write({
                         'last_scraped_price': price,

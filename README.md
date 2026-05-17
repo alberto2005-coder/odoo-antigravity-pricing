@@ -25,10 +25,16 @@ En la misma pestaña, añade las URLs de la competencia en la sección **Competi
 El módulo instala automáticamente una acción planificada (CRON) llamada `Dynamic Pricing: Update Dynamic Prices`. Por defecto, se ejecuta una vez al día de madrugada, extrayendo los precios y ajustando el `list_price` de todo el catálogo activo.
 
 ## 🛠 Configuración Avanzada Técnica
-Si tu servidor se enfrenta a bloqueos de IP (Error 403 / Captchas) de Amazon o Google:
-1. Activa el modo desarrollador.
+Para evitar bloqueos de IP (Error 403 / Captchas) y renderizar webs modernas (SPAs):
+1. Activa el modo desarrollador en Odoo.
 2. Ve a Ajustes > Técnico > **Parámetros del Sistema**.
-3. Añade una nueva clave llamada `dynamic_pricing.proxy_url` y asigna como valor tu servidor Proxy o servicio como ScrapingBee (ej. `http://usuario:contraseña@ip_proxy:puerto`).
+3. Añade cualquiera de los siguientes parámetros según tus necesidades:
+   - `dynamic_pricing.proxy_url`: Tu servidor Proxy (ej. `http://usuario:contraseña@ip_proxy:puerto`).
+   - `dynamic_pricing.api_provider`: `scrapingbee` o `zenrows` para delegar el scraping.
+   - `dynamic_pricing.api_key`: Tu clave de API privada para el proveedor elegido.
+   - `dynamic_pricing.render_js`: Escribe `True` si necesitas que el proveedor renderice el JavaScript (ideal para SPAs y webs React/Vue).
+
+> **Eficiencia Multi-hilo:** El CRON está optimizado con **Multi-Threading** (`ThreadPoolExecutor`). Extrae múltiples URLs de un mismo producto en paralelo, acelerando radicalmente la ejecución en catálogos inmensos.
 
 ## 📊 Visualización de Resultados
 Cada producto tiene un nuevo botón inteligente (Smart Button) en la parte superior derecha **"Price Fluctuation"**. Al hacer clic, se abrirá un gráfico histórico con todos los saltos de precio aplicados por el sistema a ese producto.
