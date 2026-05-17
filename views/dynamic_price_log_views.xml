@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_dynamic_price_log_tree" model="ir.ui.view">
+        <field name="name">dynamic.price.log.tree</field>
+        <field name="model">dynamic.price.log</field>
+        <field name="arch" type="xml">
+            <tree string="Price Logs" create="0" edit="0">
+                <field name="create_date" string="Date"/>
+                <field name="product_id"/>
+                <field name="old_price"/>
+                <field name="new_price"/>
+                <field name="reason"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_dynamic_price_log_graph" model="ir.ui.view">
+        <field name="name">dynamic.price.log.graph</field>
+        <field name="model">dynamic.price.log</field>
+        <field name="arch" type="xml">
+            <graph string="Price Fluctuation" type="line" sample="1">
+                <field name="create_date" interval="day"/>
+                <field name="product_id"/>
+                <field name="new_price" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_dynamic_price_log" model="ir.actions.act_window">
+        <field name="name">Dynamic Price Logs</field>
+        <field name="res_model">dynamic.price.log</field>
+        <field name="view_mode">tree,graph</field>
+    </record>
+
+    <menuitem id="menu_dynamic_price_log" 
+              name="Price Logs" 
+              parent="sale.product_menu_catalog" 
+              action="action_dynamic_price_log" 
+              sequence="100"/>
+</odoo>
