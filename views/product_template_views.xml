@@ -15,15 +15,17 @@
             <xpath expr="//notebook" position="inside">
                 <page string="Dynamic Competitor Pricing" name="dynamic_competitor_pricing">
                     <group>
-                        <group>
+                        <group string="Settings">
                             <field name="dynamic_pricing_active" widget="boolean_toggle"/>
                             <field name="min_margin" invisible="not dynamic_pricing_active"/>
+                            <field name="competitor_alert_threshold" invisible="not dynamic_pricing_active"/>
                         </group>
-                        <group>
-                            <field name="competitor_rule" invisible="not dynamic_pricing_active"/>
-                            <field name="rule_value" invisible="not dynamic_pricing_active"/>
+                        <group string="Adjustment Rules" invisible="not dynamic_pricing_active">
+                            <field name="competitor_rule"/>
+                            <field name="rule_value"/>
                         </group>
                     </group>
+                    
                     <group string="Competitor URLs" invisible="not dynamic_pricing_active">
                         <field name="competitor_url_ids" nolabel="1">
                             <tree editable="bottom">
@@ -33,6 +35,21 @@
                                 <field name="last_scraped_date"/>
                             </tree>
                         </field>
+                    </group>
+
+                    <group string="Sales Performance Impact Analysis" invisible="not dynamic_pricing_active">
+                        <group string="With Dynamic Pricing (Active Period)">
+                            <field name="dynamic_pricing_sales_qty"/>
+                            <field name="dynamic_pricing_sales_revenue"/>
+                        </group>
+                        <group string="Without Dynamic Pricing (Previous Period)">
+                            <field name="dynamic_pricing_sales_qty_before"/>
+                            <field name="dynamic_pricing_sales_rev_before"/>
+                        </group>
+                        <group string="Strategy ROI Metrics" colspan="2">
+                            <field name="sales_improvement_qty_pct" widget="float" decoration-success="sales_improvement_qty_pct &gt; 0" decoration-danger="sales_improvement_qty_pct &lt; 0"/>
+                            <field name="sales_improvement_rev_pct" widget="float" decoration-success="sales_improvement_rev_pct &gt; 0" decoration-danger="sales_improvement_rev_pct &lt; 0"/>
+                        </group>
                     </group>
                 </page>
             </xpath>

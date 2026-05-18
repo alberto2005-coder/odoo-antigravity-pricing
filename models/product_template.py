@@ -3,6 +3,7 @@ from .scraper_utils import scrape_price
 import time
 import random
 import concurrent.futures
+import datetime
 
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
@@ -15,9 +16,18 @@ class ProductTemplate(models.Model):
         ('average', 'Average competitor'),
     ], string='Adjustment Rule', default='lowest_minus')
     rule_value = fields.Float(string='Rule Value (X)', help='Percentage or fixed amount for the rule.')
+    competitor_alert_threshold = fields.Float(string='Alert Threshold (%)', default=15.0, help='Notify when competitor price changes by more than this percentage.')
     
     competitor_url_ids = fields.One2many('dynamic.competitor.url', 'product_id', string='Competitor URLs')
     dynamic_price_log_count = fields.Integer(compute='_compute_dynamic_price_log_count', string='Price Logs')
+
+    # Sales Impact Analysis Computed Fields
+    dynamic_pricing_sales_qty = fields.Float(compute='_compute_sales_impact', string='Units Sold (Active Period)')
+    dynamic_pricing_sales_revenue = fields.Monetary(compute='_compute_sales_impact', string='Revenue (Active Period)', currency_field='currency_id')
+    dynamic_pricing_sales_qty_before = fields.Float(compute='_compute_sales_impact', string='Units Sold (Previous Period)')
+    dynamic_pricing_sales_rev_before = fields.Monetary(compute='_compute_sales_impact', string='Revenue (Previous Period)', currency_field='currency_id')
+    sales_improvement_qty_pct = fields.Float(compute='_compute_sales_impact', string='Sales Qty Improvement (%)')
+    sales_improvement_rev_pct = fields.Float(compute='_compute_sales_impact', string='Revenue Improvement (%)')
 
     def _compute_dynamic_price_log_count(self):
         for record in self:
@@ -33,6 +43,57 @@ class ProductTemplate(models.Model):
             'domain': [('product_id', '=', self.id)],
             'context': {'default_product_id': self.id},
         }
+
+    def _compute_sales_impact(self):
+        for product in self:
+            # Find the oldest price log to know when dynamic pricing started
+            first_log = self.env['dynamic.price.log'].search([
+                ('product_id', '=', product.id)
+            ], order='create_date asc', limit=1)
+            
+            if not first_log:
+                product.dynamic_pricing_sales_qty = 0.0
+                product.dynamic_pricing_sales_revenue = 0.0
+                product.dynamic_pricing_sales_qty_before = 0.0
+                product.dynamic_pricing_sales_rev_before = 0.0
+                product.sales_improvement_qty_pct = 0.0
+                product.sales_improvement_rev_pct = 0.0
+                continue
+                
+            start_date = first_log.create_date
+            now = fields.Datetime.now()
+            duration = now - start_date
+            
+            # Use a duration of at least 1 day for comparison
+            days = max(duration.days, 1)
+            before_start_date = start_date - datetime.timedelta(days=days)
+            
+            # Confirmed sales during the active period
+            lines_after = self.env['sale.order.line'].search([
+                ('product_id.product_tmpl_id', '=', product.id),
+                ('order_id.state', 'in', ('sale', 'done')),
+                ('order_id.date_order', '>=', start_date)
+            ])
+            qty_after = sum(lines_after.mapped('product_uom_qty'))
+            rev_after = sum(lines_after.mapped('price_subtotal'))
+            
+            # Confirmed sales during the previous period of equal duration
+            lines_before = self.env['sale.order.line'].search([
+                ('product_id.product_tmpl_id', '=', product.id),
+                ('order_id.state', 'in', ('sale', 'done')),
+                ('order_id.date_order', '>=', before_start_date),
+                ('order_id.date_order', '<', start_date)
+            ])
+            qty_before = sum(lines_before.mapped('product_uom_qty'))
+            rev_before = sum(lines_before.mapped('price_subtotal'))
+            
+            # Calculate improvement percentage
+            product.dynamic_pricing_sales_qty = qty_after
+            product.dynamic_pricing_sales_revenue = rev_after
+            product.dynamic_pricing_sales_qty_before = qty_before
+            product.dynamic_pricing_sales_rev_before = rev_before
+            product.sales_improvement_qty_pct = ((qty_after - qty_before) / qty_before * 100.0) if qty_before > 0 else 0.0
+            product.sales_improvement_rev_pct = ((rev_after - rev_before) / rev_before * 100.0) if rev_before > 0 else 0.0
 
     @api.model
     def action_update_dynamic_prices(self):
@@ -75,11 +136,33 @@ class ProductTemplate(models.Model):
                 
             for comp, price in results:
                 if price:
+                    old_scraped_price = comp.last_scraped_price
                     comp.write({
                         'last_scraped_price': price,
                         'last_scraped_date': fields.Datetime.now()
                     })
                     prices.append(price)
+                    
+                    # Detect price changes and trigger alert if superior to alert threshold
+                    if old_scraped_price and old_scraped_price > 0.0:
+                        pct_diff = (abs(price - old_scraped_price) / old_scraped_price) * 100.0
+                        if pct_diff >= product.competitor_alert_threshold:
+                            # Log warning in chatter
+                            product.message_post(
+                                body=f"⚠️ <b>Competitor Price Alert:</b> Competitor ({comp.platform}) price changed from {old_scraped_price:.2f} to {price:.2f} ({pct_diff:.1f}% change).",
+                                subtype_xmlid="mail.mt_note"
+                            )
+                            # Create activity for admin
+                            activity_type = self.env.ref('mail.mail_activity_data_todo', raise_if_not_found=False)
+                            if activity_type:
+                                self.env['mail.activity'].create({
+                                    'res_id': product.id,
+                                    'res_model_id': self.env['ir.model']._get(product._name).id,
+                                    'activity_type_id': activity_type.id,
+                                    'summary': f"Price Alert: {product.name}",
+                                    'note': f"Competitor price on {comp.platform} changed by {pct_diff:.1f}% from {old_scraped_price:.2f} to {price:.2f}.",
+                                    'user_id': self.env.user.id or self.env.ref('base.user_admin').id or 2
+                                })
 
             if not prices:
                 continue
