@@ -36,7 +36,7 @@ def parse_google_shopping(soup):
             pass
     return None
 
-def scrape_price(url, platform, proxy=None, api_provider=None, api_key=None, render_js=False):
+def scrape_price(url, platform, proxy=None, api_provider=None, api_key=None, render_js=False, debug_mock=False):
     """
     Scrapes competitor prices.
     Uses randomized user-agents to bypass basic blocking.
@@ -92,10 +92,13 @@ def scrape_price(url, platform, proxy=None, api_provider=None, api_key=None, ren
         elif platform == 'google':
             price = parse_google_shopping(soup)
         
-        # If parsing fails or custom platform, return a mock price for development
+        # If parsing fails or custom platform, return a mock price for development/testing if enabled
         if price is None:
-            _logger.warning(f"Could not parse price from {platform}, returning mock value.")
-            return round(random.uniform(10.0, 100.0), 2)
+            if debug_mock:
+                _logger.warning(f"Could not parse price from {platform}, returning mock value for testing.")
+                return round(random.uniform(10.0, 100.0), 2)
+            _logger.warning(f"Could not parse price from {platform}. Returning None.")
+            return None
             
         return price
     except Exception as e:

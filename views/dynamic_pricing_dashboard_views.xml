@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_dynamic_pricing_dashboard_form" model="ir.ui.view">
+        <field name="name">dynamic.pricing.dashboard.form</field>
+        <field name="model">dynamic.pricing.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Dashboard Precios Dinámicos" create="0" edit="0" delete="0" class="o_dashboard_form">
+                <sheet>
+                    <!-- Custom Styles for Premium Look -->
+                    <style>
+                        .dp_dashboard_header {
+                            background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+                            color: white;
+                            padding: 24px;
+                            border-radius: 12px;
+                            margin-bottom: 24px;
+                            box-shadow: 0 4px 20px rgba(79, 70, 229, 0.15);
+                        }
+                        .dp_dashboard_header h2 {
+                            margin: 0;
+                            font-weight: 700;
+                            font-size: 26px;
+                            letter-spacing: -0.5px;
+                            color: #ffffff;
+                        }
+                        .dp_dashboard_header p {
+                            margin: 6px 0 0 0;
+                            opacity: 0.9;
+                            font-size: 14px;
+                            color: #ffffff;
+                        }
+                        .dp_card {
+                            background: #ffffff;
+                            border: 1px solid #e5e7eb;
+                            border-radius: 12px;
+                            padding: 20px;
+                            margin-bottom: 20px;
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                            position: relative;
+                            overflow: hidden;
+                        }
+                        .dp_card:hover {
+                            transform: translateY(-4px);
+                            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+                            border-color: #d1d5db;
+                        }
+                        .dp_card::before {
+                            content: "";
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            width: 4px;
+                            height: 100%;
+                        }
+                        .dp_card_blue::before { background: #3b82f6; }
+                        .dp_card_green::before { background: #10b981; }
+                        .dp_card_purple::before { background: #8b5cf6; }
+                        .dp_card_orange::before { background: #f59e0b; }
+                        .dp_card_red::before { background: #ef4444; }
+                        
+                        .dp_card_title {
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: #6b7280;
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                            margin-bottom: 8px;
+                        }
+                        .dp_card_value {
+                            font-size: 28px;
+                            font-weight: 700;
+                            color: #111827;
+                            line-height: 1.2;
+                        }
+                        .dp_card_icon {
+                            position: absolute;
+                            right: 20px;
+                            top: 20px;
+                            font-size: 24px;
+                            color: #d1d5db;
+                            opacity: 0.6;
+                        }
+                        .dp_section_title {
+                            font-size: 16px;
+                            font-weight: 700;
+                            color: #374151;
+                            margin: 15px 0;
+                            padding-bottom: 8px;
+                            border-bottom: 2px solid #f3f4f6;
+                        }
+                    </style>
+
+                    <div class="dp_dashboard_header">
+                        <h2>🚀 Panel de Precios Dinámicos e Inteligencia de Competidores</h2>
+                        <p>Análisis en tiempo real sobre el posicionamiento de catálogo, actualizaciones automáticas de margen y ROI de ventas.</p>
+                    </div>
+
+                    <div class="dp_section_title">📊 Métricas Clave y Cobertura</div>
+                    <div class="row">
+                        <div class="col-md-3 col-sm-6">
+                            <div class="dp_card dp_card_blue">
+                                <span class="fa fa-shopping-bag dp_card_icon"></span>
+                                <div class="dp_card_title">Productos Activos</div>
+                                <div class="dp_card_value">
+                                    <field name="active_products_count" readonly="1"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-sm-6">
+                            <div class="dp_card dp_card_purple">
+                                <span class="fa fa-link dp_card_icon"></span>
+                                <div class="dp_card_title">Competidores Monitoreados</div>
+                                <div class="dp_card_value">
+                                    <field name="total_urls_count" readonly="1"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-sm-6">
+                            <div class="dp_card dp_card_orange">
+                                <span class="fa fa-refresh dp_card_icon"></span>
+                                <div class="dp_card_title">Ajustes Hoy</div>
+                                <div class="dp_card_value">
+                                    <field name="today_logs_count" readonly="1"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-sm-6">
+                            <div class="dp_card dp_card_red">
+                                <span class="fa fa-exclamation-triangle dp_card_icon"></span>
+                                <div class="dp_card_title">Alertas Críticas Hoy</div>
+                                <div class="dp_card_value">
+                                    <field name="active_alerts_count" readonly="1"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dp_section_title">📈 Retorno de Inversión (ROI) y Ventas</div>
+                    <div class="row">
+                        <div class="col-md-6 col-xs-12">
+                            <div class="dp_card dp_card_green">
+                                <span class="fa fa-line-chart dp_card_icon"></span>
+                                <div class="dp_card_title">Mejora Media en Ventas (Unidades)</div>
+                                <div class="dp_card_value">
+                                    <field name="avg_qty_improvement" readonly="1"/>%
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-xs-12">
+                            <div class="dp_card dp_card_green">
+                                <span class="fa fa-bar-chart dp_card_icon"></span>
+                                <div class="dp_card_title">Mejora Media en Facturación</div>
+                                <div class="dp_card_value">
+                                    <field name="avg_rev_improvement" readonly="1"/>%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dp_section_title">⚙️ Históricos y Logs Rápidos</div>
+                    <div class="row">
+                        <div class="col-md-6 col-xs-12">
+                            <div class="dp_card dp_card_blue">
+                                <span class="fa fa-history dp_card_icon"></span>
+                                <div class="dp_card_title">Total Cambios Acumulados</div>
+                                <div class="dp_card_value">
+                                    <field name="total_logs_count" readonly="1"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Server Action to open the dashboard transient model -->
+    <record id="action_dynamic_pricing_dashboard" model="ir.actions.server">
+        <field name="name">Dashboard Precios Dinámicos</field>
+        <field name="model_id" ref="model_dynamic_pricing_dashboard"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_open_dashboard()</field>
+    </record>
+
+    <!-- Menu Item under Sales -> Reporting -->
+    <menuitem id="menu_dynamic_pricing_dashboard" 
+              name="Dashboard Precios Dinámicos" 
+              parent="sale.menu_sale_report" 
+              action="action_dynamic_pricing_dashboard" 
+              sequence="1"/>
+
+    <!-- Competitor Price History Views -->
+    <record id="view_dynamic_competitor_price_log_tree" model="ir.ui.view">
+        <field name="name">dynamic.competitor.price.log.tree</field>
+        <field name="model">dynamic.competitor.price.log</field>
+        <field name="arch" type="xml">
+            <tree string="Competitor Price History" create="0" edit="0" delete="0">
+                <field name="create_date" string="Date"/>
+                <field name="product_id"/>
+                <field name="platform"/>
+                <field name="competitor_url_id" widget="url" string="URL"/>
+                <field name="price"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_dynamic_competitor_price_log_graph" model="ir.ui.view">
+        <field name="name">dynamic.competitor.price.log.graph</field>
+        <field name="model">dynamic.competitor.price.log</field>
+        <field name="arch" type="xml">
+            <graph string="Competitor Price Evolution" type="line" sample="1">
+                <field name="create_date" interval="day"/>
+                <field name="product_id"/>
+                <field name="price" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_dynamic_competitor_price_log" model="ir.actions.act_window">
+        <field name="name">Competitor Price History</field>
+        <field name="res_model">dynamic.competitor.price.log</field>
+        <field name="view_mode">tree,graph</field>
+    </record>
+
+    <menuitem id="menu_dynamic_competitor_price_log" 
+              name="Competitor Price History" 
+              parent="sale.product_menu_catalog" 
+              action="action_dynamic_competitor_price_log" 
+              sequence="103"/>
+</odoo>

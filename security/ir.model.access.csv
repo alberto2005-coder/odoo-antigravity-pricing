@@ -2,3 +2,5 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_dynamic_competitor_url,dynamic.competitor.url,model_dynamic_competitor_url,base.group_user,1,1,1,1
 access_dynamic_price_log,dynamic.price.log,model_dynamic_price_log,base.group_user,1,1,1,1
 access_import_competitor_url_wizard,import.competitor.url.wizard,model_import_competitor_url_wizard,base.group_user,1,1,1,1
+access_dynamic_competitor_price_log,dynamic.competitor.price.log,model_dynamic_competitor_price_log,base.group_user,1,1,1,1
+access_dynamic_pricing_dashboard,dynamic.pricing.dashboard,model_dynamic_pricing_dashboard,base.group_user,1,1,1,1

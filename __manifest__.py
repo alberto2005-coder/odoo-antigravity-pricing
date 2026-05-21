@@ -16,6 +16,7 @@
         'views/product_template_views.xml',
         'views/dynamic_price_log_views.xml',
         'views/import_competitor_url_views.xml',
+        'views/dynamic_pricing_dashboard_views.xml',
     ],
     'installable': True,
     'application': False,

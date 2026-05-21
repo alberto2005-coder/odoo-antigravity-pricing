@@ -14,6 +14,7 @@ class ProductTemplate(models.Model):
         ('lowest_minus', 'Lowest competitor - X%'),
         ('lowest_minus_fixed', 'Lowest competitor - Fixed Amount'),
         ('average', 'Average competitor'),
+        ('predictive', 'Predictive Trend Match'),
     ], string='Adjustment Rule', default='lowest_minus')
     rule_value = fields.Float(string='Rule Value (X)', help='Percentage or fixed amount for the rule.')
     competitor_alert_threshold = fields.Float(string='Alert Threshold (%)', default=15.0, help='Notify when competitor price changes by more than this percentage.')
@@ -95,6 +96,46 @@ class ProductTemplate(models.Model):
             product.sales_improvement_qty_pct = ((qty_after - qty_before) / qty_before * 100.0) if qty_before > 0 else 0.0
             product.sales_improvement_rev_pct = ((rev_after - rev_before) / rev_before * 100.0) if rev_before > 0 else 0.0
 
+    def _predict_next_price(self, competitor_url):
+        """
+        Predicts the next price of a competitor using a linear regression trend
+        based on the last 5 logs in dynamic.competitor.price.log.
+        """
+        logs = self.env['dynamic.competitor.price.log'].search([
+            ('competitor_url_id', '=', competitor_url.id)
+        ], order='create_date desc', limit=5)
+        
+        if len(logs) < 2:
+            return competitor_url.last_scraped_price
+            
+        # Reverse to get oldest to newest
+        prices = [log.price for log in reversed(logs)]
+        n = len(prices)
+        x = list(range(1, n + 1))
+        y = prices
+        
+        sum_x = sum(x)
+        sum_y = sum(y)
+        sum_xx = sum(i*i for i in x)
+        sum_xy = sum(i*j for i, j in zip(x, y))
+        
+        denominator = (n * sum_xx - sum_x * sum_x)
+        if denominator == 0:
+            return prices[-1]
+            
+        slope = (n * sum_xy - sum_x * sum_y) / denominator
+        
+        # Predict the next point (n + 1)
+        mean_x = sum_x / n
+        mean_y = sum_y / n
+        predicted_price = mean_y + slope * ((n + 1) - mean_x)
+        
+        # Safety fallback
+        if predicted_price <= 0 or predicted_price < prices[-1] * 0.5:
+            return prices[-1]
+            
+        return round(predicted_price, 2)
+
     @api.model
     def action_update_dynamic_prices(self):
         """
@@ -106,6 +147,7 @@ class ProductTemplate(models.Model):
         api_provider = config.get_param('dynamic_pricing.api_provider', default=None)
         api_key = config.get_param('dynamic_pricing.api_key', default=None)
         render_js = config.get_param('dynamic_pricing.render_js', default='False').lower() == 'true'
+        debug_mock = config.get_param('dynamic_pricing.debug_mock_prices', default='False').lower() == 'true'
         
         products = self.search([('dynamic_pricing_active', '=', True)])
         
@@ -115,32 +157,45 @@ class ProductTemplate(models.Model):
                 continue
 
             prices = []
+            # Extract competitor data in the main thread (thread safety for Odoo environment)
+            competitor_data = [(comp.id, comp.url, comp.platform) for comp in product.competitor_url_ids]
             
-            def scrape_and_update(comp):
+            def scrape_and_update(data):
+                comp_id, url, platform = data
                 # Add random sleep between requests to avoid rate limits if not using API
                 if not api_provider:
                     time.sleep(random.uniform(1.0, 3.5))
                 
-                return comp, scrape_price(
-                    comp.url, 
-                    comp.platform, 
+                price = scrape_price(
+                    url, 
+                    platform, 
                     proxy=proxy_url,
                     api_provider=api_provider,
                     api_key=api_key,
-                    render_js=render_js
+                    render_js=render_js,
+                    debug_mock=debug_mock
                 )
+                return comp_id, price
 
             # Use ThreadPoolExecutor for multi-threading
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-                results = executor.map(scrape_and_update, product.competitor_url_ids)
+                results = list(executor.map(scrape_and_update, competitor_data))
                 
-            for comp, price in results:
-                if price:
+            for comp_id, price in results:
+                if price is not None:
+                    comp = self.env['dynamic.competitor.url'].browse(comp_id)
                     old_scraped_price = comp.last_scraped_price
                     comp.write({
                         'last_scraped_price': price,
                         'last_scraped_date': fields.Datetime.now()
                     })
+                    
+                    # Log competitor price history
+                    self.env['dynamic.competitor.price.log'].create({
+                        'competitor_url_id': comp.id,
+                        'price': price
+                    })
+                    
                     prices.append(price)
                     
                     # Detect price changes and trigger alert if superior to alert threshold
@@ -164,20 +219,35 @@ class ProductTemplate(models.Model):
                                     'user_id': self.env.user.id or self.env.ref('base.user_admin').id or 2
                                 })
 
-            if not prices:
+            if not prices and product.competitor_rule != 'predictive':
                 continue
 
             # Calculate proposed price
             proposed_price = product.list_price
-            lowest_price = min(prices)
-            average_price = sum(prices) / len(prices)
+            
+            if product.competitor_rule == 'predictive':
+                predicted_prices = []
+                for comp in product.competitor_url_ids:
+                    pred_price = product._predict_next_price(comp)
+                    if pred_price:
+                        predicted_prices.append(pred_price)
+                if not predicted_prices:
+                    continue
+                lowest_predicted = min(predicted_prices)
+                if product.rule_value:
+                    proposed_price = lowest_predicted * (1 - (product.rule_value / 100.0))
+                else:
+                    proposed_price = lowest_predicted
+            else:
+                lowest_price = min(prices)
+                average_price = sum(prices) / len(prices)
 
-            if product.competitor_rule == 'lowest_minus':
-                proposed_price = lowest_price * (1 - (product.rule_value / 100.0))
-            elif product.competitor_rule == 'lowest_minus_fixed':
-                proposed_price = lowest_price - product.rule_value
-            elif product.competitor_rule == 'average':
-                proposed_price = average_price
+                if product.competitor_rule == 'lowest_minus':
+                    proposed_price = lowest_price * (1 - (product.rule_value / 100.0))
+                elif product.competitor_rule == 'lowest_minus_fixed':
+                    proposed_price = lowest_price - product.rule_value
+                elif product.competitor_rule == 'average':
+                    proposed_price = average_price
 
             # Safety Validation: Never go below cost + minimum margin
             # Margin = (Price - Cost) / Cost  =>  Price = Cost * (1 + Margin)
@@ -199,7 +269,7 @@ class ProductTemplate(models.Model):
                     'product_id': product.id,
                     'old_price': old_price,
                     'new_price': proposed_price,
-                    'reason': f"Rule '{product.competitor_rule}' applied. Competitor prices: {prices}"
+                    'reason': f"Rule '{product.competitor_rule}' applied. Competitor prices: {prices if product.competitor_rule != 'predictive' else predicted_prices}"
                 })
                 
                 # Also log in chatter
